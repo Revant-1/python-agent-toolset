@@ -1,6 +1,7 @@
 import os
 import argparse
 import json
+import sys
 from dotenv import load_dotenv
 from openai import OpenAI
 from prompts import system_prompt
@@ -24,7 +25,7 @@ MODEL = "stepfun/step-3.5-flash:free"
 
 def main():
     # Setup argument parser
-    parser = argparse.ArgumentParser(description="Chatbot with tool calling support")
+    parser = argparse.ArgumentParser(description="Agentic Chatbot with iterative tool loop")
     parser.add_argument("user_prompt", type=str, help="User prompt to send to the AI")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
@@ -39,51 +40,57 @@ def main():
             {"role": "user", "content": args.user_prompt}
         ]
 
-        # API call with tools provided
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            tools=available_functions,
-            temperature=0,
-            extra_body={"reasoning": {"enabled": True}}
-        )
+        # Iterative agent loop
+        for i in range(20):
+            if args.verbose:
+                print(f"\n--- Iteration {i+1} ---")
+            
+            response = client.chat.completions.create(
+                model=MODEL,
+                messages=messages,
+                tools=available_functions,
+                temperature=0,
+                extra_body={"reasoning": {"enabled": True}}
+            )
 
-        message = response.choices[0].message
-        
-        # Check for tool calls
-        if hasattr(message, 'tool_calls') and message.tool_calls:
-            function_results = []
-            for tool_call in message.tool_calls:
-                # Use the call_function dispatcher
-                function_call_result = call_function(tool_call, verbose=args.verbose)
-                
-                # Validation logic as requested by the assignment
-                if not function_call_result.parts:
-                    raise Exception("Function call result has no parts")
-                
-                part = function_call_result.parts[0]
-                if not hasattr(part, 'function_response') or part.function_response is None:
-                    raise Exception("Function call result part has no function_response")
-                
-                if not hasattr(part.function_response, 'response') or part.function_response.response is None:
-                    raise Exception("FunctionResponse has no response field")
+            assistant_msg = response.choices[0].message
+            messages.append(assistant_msg)
+            
+            # Check for tool calls
+            if hasattr(assistant_msg, 'tool_calls') and assistant_msg.tool_calls:
+                for tool_call in assistant_msg.tool_calls:
+                    # Execute the tool
+                    function_call_result = call_function(tool_call, verbose=args.verbose)
+                    
+                    # Validation
+                    if not function_call_result.parts:
+                        raise Exception("Function call result has no parts")
+                    part = function_call_result.parts[0]
+                    
+                    # Append result to history for the model to see in next iteration
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "name": tool_call.function.name,
+                        "content": json.dumps(part.function_response.response)
+                    })
 
-                # Collect result part
-                function_results.append(part)
-
-                # Verbose printing of the result
+                    if args.verbose:
+                        print(f"-> {part.function_response.response}")
+            else:
+                # No more tools requested, this is the final final response
                 if args.verbose:
-                    print(f"-> {part.function_response.response}")
-        else:
-            # If no tool calls, print the text response
-            print(message.content)
+                    print("\nFinal response:")
+                print(assistant_msg.content)
+                return
 
-        if args.verbose and response.usage:
-            print(f"\nPrompt tokens: {response.usage.prompt_tokens}")
-            print(f"Completion tokens: {response.usage.completion_tokens}")
+        # If we reach here, we hit the iteration limit
+        print("\nError: Maximum iteration limit (20) reached without a final response.")
+        sys.exit(1)
 
     except Exception as e:
         print(f"Error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
