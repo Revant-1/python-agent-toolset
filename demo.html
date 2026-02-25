@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      body {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        font-family: "Courier New", Courier, monospace;
+        padding: 20px;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .prompt {
+        color: #569cd6;
+      } /* Blue for powershell prompt */
+      .command {
+        color: #ce9178;
+      }
+      .output {
+        color: #d4d4d4;
+        white-space: pre-wrap;
+        margin-top: 10px;
+      }
+      .cursor {
+        animation: blink 1s step-end infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <script>
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      async function runDemo() {
+        const term = document.getElementById("terminal");
+
+        // Initial line
+        term.innerHTML =
+          '<span class="prompt">PS E:\\Coding Agent project&gt;</span> <span class="command" id="cmd"></span><span class="cursor" id="cursor1">_</span><br/>';
+
+        const cmdText =
+          'uv run main.py "what files are in the pkg directory?" --verbose';
+        const cmdEl = document.getElementById("cmd");
+
+        // Typing effect
+        for (let i = 0; i < cmdText.length; i++) {
+          cmdEl.textContent += cmdText[i];
+          await sleep(40);
+        }
+
+        await sleep(300);
+        document.getElementById("cursor1").style.display = "none"; // hide first cursor
+
+        // Output text
+        const outputText = `--- Calling Model: stepfun/step-3.5-flash:free ---
+
+--- Iteration 1 ---
+Calling function: get_files_info({'directory': 'pkg'})
+-> {'result': '- calculator.py: file_size=1812 bytes, is_dir=False\\n- render.py: file_size=633 bytes, is_dir=False\\n- __pycache__: file_size=0 bytes, is_dir=True'}
+
+Final response:
+The \`pkg\` directory contains the following items:
+1. \`calculator.py\` (File, 1812 bytes)
+2. \`render.py\` (File, 633 bytes)
+3. \`__pycache__\` (Directory, 0 bytes)
+
+Prompt tokens: 814
+Completion tokens: 122`;
+
+        // Display output line by line or instantly
+        term.innerHTML += `<div class="output">${outputText}</div>`;
+
+        // New prompt line
+        term.innerHTML +=
+          '<br/><span class="prompt">PS E:\\Coding Agent project&gt;</span> <span class="cursor">_</span>';
+      }
+
+      // Start after a slight delay
+      setTimeout(runDemo, 500);
+    </script>
+  </body>
+</html>
