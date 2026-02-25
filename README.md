@@ -29,13 +29,6 @@ graph TD
     H --> I[Append Result as 'role: tool' to Conversation History]
     I --> B
 ```
-
-## Demo
-
-Here is a quick demonstration of the agent automatically exploring a repository and answering a complex user query autonomously:
-
-![Agent Demo](C:\Users\REVANT SHINDE\.gemini\antigravity\brain\2e6a767f-05ee-4596-b431-7bf1a489b177\agent_demo_1772023303731.webp)
-
 ## Usage
 
 Ensure you have your OpenRouter API key inside a `.env` file first:
